@@ -1,0 +1,35 @@
+name: Loaddata
+description: Loads the data and returns into the form of dataframe
+implementation:
+  container:
+    image: python:3.9
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - |
+      def loaddata():
+          """Loads the data and returns into the form of dataframe"""
+          import pandas as pd
+
+          data_path = "data/"
+
+          test_df = pd.read_csv(data_path + "test.csv")
+          train_df = pd.read_csv(data_path + "train.csv")
+
+          return train_df, test_df
+
+      import argparse
+      _parser = argparse.ArgumentParser(prog='Loaddata', description='Loads the data and returns into the form of dataframe')
+      _parsed_args = vars(_parser.parse_args())
+
+      _outputs = loaddata(**_parsed_args)
+    args: []
