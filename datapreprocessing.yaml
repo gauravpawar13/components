@@ -1,0 +1,39 @@
+name: Datapreprocessing
+inputs:
+- {name: train_df}
+- {name: test_df}
+implementation:
+  container:
+    image: python:3.9
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def datapreprocessing(train_df, test_df):\n\n    def transform(df,cat):\n \
+      \       for i in cat.columns:\n            df[i].fillna(\"None\",inplace=True)\n\
+      \        return df    \n\n    # Finding correlation among data\n    cormat=train_df.corr()\n\
+      \    corrolation=cormat[\"SalePrice\"].sort_values(ascending=False)\n    features\
+      \ = corrolation.index[:10]   # only keeping features which are most related\
+      \ to our target\n\n    # We drop the Id column because it does not add any usefull\
+      \ information to our model\n    train_df.drop(['Id'],axis=1,inplace=True)\n\
+      \    test_df.drop(['Id'],axis=1,inplace=True)\n\n    train_cat=train_df.select_dtypes(include='object')\n\
+      \    test_cat=test_df.select_dtypes(include='object')\n\n    df_train=transform(train_df,train_cat)\n\
+      \    df_test=transform(test_df,test_cat)\n\n    return df_train,df_test\n\n\
+      import argparse\n_parser = argparse.ArgumentParser(prog='Datapreprocessing',\
+      \ description='')\n_parser.add_argument(\"--train-df\", dest=\"train_df\", type=str,\
+      \ required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--test-df\"\
+      , dest=\"test_df\", type=str, required=True, default=argparse.SUPPRESS)\n_parsed_args\
+      \ = vars(_parser.parse_args())\n\n_outputs = datapreprocessing(**_parsed_args)\n"
+    args:
+    - --train-df
+    - {inputValue: train_df}
+    - --test-df
+    - {inputValue: test_df}

@@ -1,0 +1,63 @@
+name: Linearregression
+inputs:
+- {name: X_training}
+- {name: y_training}
+- {name: X_valid}
+- {name: y_valid}
+implementation:
+  container:
+    image: python:3.9
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'numpy' 'sklearn' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install
+      --quiet --no-warn-script-location 'numpy' 'sklearn' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - |
+      def linearregression(X_training,y_training,X_valid,y_valid):
+          from sklearn.linear_model import LinearRegression
+          from sklearn.model_selection import GridSearchCV
+          import numpy as np
+          from sklearn.metrics import mean_squared_error, r2_score
+
+          linreg=LinearRegression()
+          parameters_lin={"fit_intercept":[True,False],"normalize":[True,False],"copy_X":[True,False]}
+          grid_linreg=GridSearchCV(linreg,parameters_lin,verbose=1,scoring="r2")
+          grid_linreg.fit(X_training ,y_training)
+
+          linreg = grid_linreg.best_estimator_
+
+          linreg.fit(X_training, y_training)
+          lin_pred = linreg.predict(X_valid)
+
+          r2_lin = r2_score(y_valid, lin_pred)
+          rmse_lin = np.sqrt(mean_squared_error(y_valid, lin_pred))
+
+          print("Successfull")
+
+          return r2_lin,rmse_lin
+
+      import argparse
+      _parser = argparse.ArgumentParser(prog='Linearregression', description='')
+      _parser.add_argument("--X-training", dest="X_training", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--y-training", dest="y_training", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--X-valid", dest="X_valid", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--y-valid", dest="y_valid", type=str, required=True, default=argparse.SUPPRESS)
+      _parsed_args = vars(_parser.parse_args())
+
+      _outputs = linearregression(**_parsed_args)
+    args:
+    - --X-training
+    - {inputValue: X_training}
+    - --y-training
+    - {inputValue: y_training}
+    - --X-valid
+    - {inputValue: X_valid}
+    - --y-valid
+    - {inputValue: y_valid}

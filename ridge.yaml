@@ -1,0 +1,58 @@
+name: Ridge
+inputs:
+- {name: X_training}
+- {name: y_training}
+- {name: X_valid}
+- {name: y_valid}
+implementation:
+  container:
+    image: python:3.9
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'numpy' 'sklearn' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install
+      --quiet --no-warn-script-location 'numpy' 'sklearn' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - |
+      def ridge(X_training,y_training,X_valid,y_valid):
+          from sklearn.linear_model import Ridge
+          from sklearn.model_selection import GridSearchCV
+          import numpy as np
+          from sklearn.metrics import mean_squared_error, r2_score
+
+          ridge=Ridge()
+          parameters_ridge = {"fit_intercept" : [True, False], "normalize" : [True, False], "copy_X" : [True, False], "solver" : ["auto"]}
+          grid_ridge = GridSearchCV(ridge, parameters_ridge, verbose=1, scoring="r2")
+          grid_ridge.fit(X_training, y_training)
+          ridge = grid_ridge.best_estimator_
+          ridge.fit(X_training, y_training)
+          ridge_pred = ridge.predict(X_valid)
+          r2_ridge = r2_score(y_valid, ridge_pred)
+          rmse_ridge = np.sqrt(mean_squared_error(y_valid, ridge_pred))
+
+          return r2_ridge,rmse_ridge
+
+      import argparse
+      _parser = argparse.ArgumentParser(prog='Ridge', description='')
+      _parser.add_argument("--X-training", dest="X_training", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--y-training", dest="y_training", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--X-valid", dest="X_valid", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--y-valid", dest="y_valid", type=str, required=True, default=argparse.SUPPRESS)
+      _parsed_args = vars(_parser.parse_args())
+
+      _outputs = ridge(**_parsed_args)
+    args:
+    - --X-training
+    - {inputValue: X_training}
+    - --y-training
+    - {inputValue: y_training}
+    - --X-valid
+    - {inputValue: X_valid}
+    - --y-valid
+    - {inputValue: y_valid}

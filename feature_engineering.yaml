@@ -1,0 +1,73 @@
+name: Featureengineering
+inputs:
+- {name: df_train}
+- {name: df_test}
+implementation:
+  container:
+    image: python:3.9
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' 'category_encoders' 'sklearn' 'numpy' || PIP_DISABLE_PIP_VERSION_CHECK=1
+      python3 -m pip install --quiet --no-warn-script-location 'pandas' 'category_encoders'
+      'sklearn' 'numpy' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - |
+      def featureengineering(df_train,df_test):
+
+          from category_encoders import CountEncoder
+          # converting categorical features into numerical values
+          cat=df_train.select_dtypes(include='object')
+          enc = CountEncoder(normalize=True, cols=cat.columns)
+          df_train = enc.fit_transform(df_train)
+
+          cat_test=df_test.select_dtypes(include='object')
+          enct=CountEncoder(normalize=True,cols=cat_test.columns)
+          df_test=enct.fit_transform(df_test)
+
+          from sklearn.experimental import enable_iterative_imputer
+          from sklearn.impute import IterativeImputer
+          from sklearn.ensemble import RandomForestRegressor
+
+          estimator=RandomForestRegressor(max_depth=8)
+          mice = IterativeImputer(estimator=estimator,random_state=11,skip_complete=True)
+
+          import pandas as pd
+          import numpy as np
+
+          final_train=mice.fit_transform(df_train)
+          final_train=pd.DataFrame(final_train,columns=df_train.columns)
+          final_train["LogPrice"]=np.log(final_train["SalePrice"])
+
+          final_test=mice.fit_transform(df_test)
+          final_test=pd.DataFrame(final_test,columns=df_test.columns)
+
+          X_train = final_train.drop(["SalePrice","LogPrice"], axis=1)
+          y_train = final_train["LogPrice"]
+
+          from sklearn.preprocessing import StandardScaler
+          scale=StandardScaler()
+          X_train=scale.fit_transform(X_train)
+
+          from sklearn.model_selection import train_test_split
+
+          return train_test_split(X_train,y_train,test_size=0.2,random_state=0)
+
+      import argparse
+      _parser = argparse.ArgumentParser(prog='Featureengineering', description='')
+      _parser.add_argument("--df-train", dest="df_train", type=str, required=True, default=argparse.SUPPRESS)
+      _parser.add_argument("--df-test", dest="df_test", type=str, required=True, default=argparse.SUPPRESS)
+      _parsed_args = vars(_parser.parse_args())
+
+      _outputs = featureengineering(**_parsed_args)
+    args:
+    - --df-train
+    - {inputValue: df_train}
+    - --df-test
+    - {inputValue: df_test}

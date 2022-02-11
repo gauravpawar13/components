@@ -1,0 +1,49 @@
+name: Decisiontree
+inputs:
+- {name: X_training}
+- {name: y_training}
+- {name: X_valid}
+- {name: y_valid}
+implementation:
+  container:
+    image: python:3.9
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'numpy' 'sklearn' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install
+      --quiet --no-warn-script-location 'numpy' 'sklearn' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def decisiontree(X_training,y_training,X_valid,y_valid):\n    from sklearn.tree\
+      \ import DecisionTreeRegressor\n    from sklearn.model_selection import GridSearchCV\n\
+      \    import numpy as np\n    from sklearn.metrics import mean_squared_error,\
+      \ r2_score\n\n    dtreg = DecisionTreeRegressor(random_state = 100)\n    parameters_dtr\
+      \ = {\"criterion\" : [\"mse\", \"friedman_mse\", \"mae\"], \"splitter\" : [\"\
+      best\", \"random\"], \"min_samples_split\" : [2, 3, 5, 10], \n             \
+      \     \"max_features\" : [\"auto\", \"log2\"]}\n    grid_dtr = GridSearchCV(dtreg,\
+      \ parameters_dtr, verbose=1, scoring=\"r2\")\n    grid_dtr.fit(X_training, y_training)\n\
+      \    dtreg = grid_dtr.best_estimator_\n    dtreg.fit(X_training, y_training)\n\
+      \    dtr_pred = dtreg.predict(X_valid)\n    r2_dtr = r2_score(y_valid, dtr_pred)\n\
+      \    rmse_dtr = np.sqrt(mean_squared_error(y_valid, dtr_pred))\n\n    return\
+      \ r2_dtr,rmse_dtr\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Decisiontree',\
+      \ description='')\n_parser.add_argument(\"--X-training\", dest=\"X_training\"\
+      , type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --y-training\", dest=\"y_training\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--X-valid\", dest=\"X_valid\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--y-valid\", dest=\"y_valid\"\
+      , type=str, required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\
+      \n_outputs = decisiontree(**_parsed_args)\n"
+    args:
+    - --X-training
+    - {inputValue: X_training}
+    - --y-training
+    - {inputValue: y_training}
+    - --X-valid
+    - {inputValue: X_valid}
+    - --y-valid
+    - {inputValue: y_valid}
