@@ -1,0 +1,16 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: my-pipeline-
+  annotations: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.11, pipelines.kubeflow.org/pipeline_compilation_time: '2022-02-11T19:23:57.344618',
+    pipelines.kubeflow.org/pipeline_spec: '{"name": "My pipeline"}'}
+  labels: {pipelines.kubeflow.org/kfp_sdk_version: 1.8.11}
+spec:
+  entrypoint: my-pipeline
+  templates:
+  - name: my-pipeline
+    dag:
+      tasks: []
+  arguments:
+    parameters: []
+  serviceAccountName: pipeline-runner
